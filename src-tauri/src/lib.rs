@@ -12,17 +12,26 @@ use commands::file_system::{
     rebuild_index,
 };
 use commands::migrate::{storage_count_bookmarks, storage_migrate};
+use commands::pairing::{pairing_export, pairing_import};
 use commands::storage_cmd::storage_test_connection;
 use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init());
+
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+    }
+
+    builder
         .setup(|app| {
             use tauri::Manager;
             let handle = app.handle().clone();
@@ -40,6 +49,8 @@ pub fn run() {
             storage_test_connection,
             storage_migrate,
             storage_count_bookmarks,
+            pairing_export,
+            pairing_import,
             bookmark_save,
             bookmark_read,
             bookmark_delete,

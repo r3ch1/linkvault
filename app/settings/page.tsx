@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Header } from "@/components/Header";
+import { PairingExportDialog } from "@/components/PairingExportDialog";
+import { PairingImportDialog } from "@/components/PairingImportDialog";
 import { StorageSettings } from "@/components/StorageSettings";
+import { Smartphone, Download } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { tauri } from "@/lib/tauri-bridge";
 import { PROVIDER_DEFAULT_MODELS, PROVIDER_LABELS } from "@/lib/ai";
@@ -31,6 +34,8 @@ export default function SettingsPage() {
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
+  const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     if (!config) load();
@@ -140,6 +145,47 @@ export default function SettingsPage() {
         <h1 className="mb-6 text-2xl font-bold">Configurações</h1>
 
         <StorageSettings draft={draft} setDraft={setDraft} save={save} />
+
+        <section className="mb-8 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+          <h2 className="mb-1 text-lg font-semibold">
+            Sincronizar com outro device
+          </h2>
+          <p className="mb-3 text-xs text-neutral-500">
+            Transfere a configuração de storage e as chaves de IA pra outro
+            device LinkVault (ex: do desktop pro celular). Bookmarks são
+            sincronizados automaticamente porque ambos passam a ler o mesmo
+            storage. Não toca nos arquivos da origem.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowExport(true)}
+              className="flex items-center gap-1.5 rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900"
+            >
+              <Smartphone className="h-4 w-4" />
+              Conectar Android (gerar QR)
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900"
+            >
+              <Download className="h-4 w-4" />
+              Importar do desktop
+            </button>
+          </div>
+        </section>
+
+        {showExport && (
+          <PairingExportDialog onClose={() => setShowExport(false)} />
+        )}
+        {showImport && (
+          <PairingImportDialog
+            onClose={() => setShowImport(false)}
+            onDone={() => {
+              // Reload config so the UI reflects the imported settings.
+              void load();
+            }}
+          />
+        )}
 
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
           <h2 className="mb-1 text-lg font-semibold">Provedores de IA</h2>

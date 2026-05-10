@@ -55,6 +55,13 @@ npm run tauri:build
 
 Output is in `src-tauri/target/release/bundle/`.
 
+### Android build
+
+Building the Android app requires Android SDK + NDK on your machine. Step-by-step:
+
+- [English](docs/android-build.en.md)
+- [Português](docs/android-build.md)
+
 ### Cloud storage setup guides
 
 Step-by-step guides for syncing your bookmarks across devices:

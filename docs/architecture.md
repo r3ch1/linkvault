@@ -839,8 +839,8 @@ O fluxo lógico do diagrama §5.1 fica idêntico; só não há mais a camada "AP
 
 ### Fase 3 — Android (2-3 semanas)
 
-- [ ] Build Android com Tauri v2
-- [ ] **Pareamento Desktop ↔ Android via QR Code** (ver §7.3) — desktop gera QR efêmero com `StorageInit` + chaves de IA; Android lê com câmera, salva no Keystore. Sem servidor intermediário.
+- [ ] Build Android com Tauri v2 *(código pronto; manual: rodar `tauri android init` numa máquina com Android SDK/NDK — ver [docs/android-build.md](android-build.md))*
+- [x] **Pareamento Desktop ↔ Android via QR Code** (ver §7.3) — desktop gera QR efêmero com TTL 60s + tap-to-reveal + aviso; Android (ou desktop como fallback) lê com câmera via `@tauri-apps/plugin-barcode-scanner` ou cola JSON manualmente. Sem servidor intermediário. Comandos Rust: `pairing_export` / `pairing_import`.
 - [ ] Share Intent para texto (links)
 - [ ] Share Intent para áudio
 - [ ] Integração Whisper para transcrição

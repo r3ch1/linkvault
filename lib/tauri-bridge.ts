@@ -43,4 +43,13 @@ export const tauri = {
   rebuildIndex: () => invoke<number>("rebuild_index"),
   openPathExternal: (path: string) =>
     invoke<void>("open_path_external", { path }),
+
+  pairingExport: () => invoke<string>("pairing_export"),
+  pairingImport: (payload: string) =>
+    invoke<{
+      config_applied: boolean;
+      secrets_imported: number;
+      storage_kind: string;
+      ai_providers_with_keys: string[];
+    }>("pairing_import", { payload }),
 };
