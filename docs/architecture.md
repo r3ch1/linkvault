@@ -643,6 +643,67 @@ pub fn get_share_intent(app: tauri::AppHandle) -> Option<SharePayload> {
 }
 ```
 
+### 7.3 Pareamento Desktop ↔ Android via QR Code
+
+Para evitar que o usuário precise re-digitar manualmente endpoint, region, bucket, access key ID, secret access key, chaves de IA, etc no celular, o desktop oferece um fluxo de **pareamento por QR Code** — análogo ao WhatsApp Web ou Bitwarden mobile.
+
+**Fluxo**:
+
+```
+DESKTOP                                          ANDROID
+1. Settings → "Conectar Android"
+2. Coleta config atual + secrets do
+   keychain → monta payload:
+   {
+     "v": 1,
+     "storage": StorageInit {...},
+     "ai": { default, providers, keys }
+   }
+3. Codifica payload em QR (client-side, JS).
+   QR fica oculto até "Tap to reveal".
+   Timer de 60s — depois expira/regenera.
+4. Mostra aviso: "Não tire screenshot.
+   Não exiba em ambiente público."
+                                                 5. Settings → "Importar do desktop"
+                                                 6. Câmera abre via tauri-plugin-barcode-scanner
+                                                 7. Lê QR → desserializa JSON
+                                                 8. Tela de confirmação:
+                                                    "Importar storage R2 'linkvault-heric'
+                                                     e 1 chave de IA (gemini)?"
+                                                    [Confirmar] [Cancelar]
+                                                 9. Confirma → salva em config.json
+                                                    + grava secrets no Android Keystore
+10. Desktop limpa o QR ←──── beacon de sucesso
+    e a tela retorna ao normal              ←─── (opcional, via mDNS/local network)
+```
+
+**Decisões de design**:
+
+- **Sem servidor intermediário**: o QR carrega o payload completo. Não há cloud nossa envolvida no pareamento. Mantém a filosofia "secrets só vivem no keychain de cada device".
+- **Single-use + TTL curto (60s)**: reduz a janela de exposição na tela. O payload exibido vira inválido após 60s mesmo sem uso (o desktop regenera/limpa).
+- **Hide-by-default**: a tela mostra o card do QR borrado com botão "Tap to reveal", então o secret só fica visível quando o usuário explicitamente solicita.
+- **Aviso explícito** sobre não tirar screenshot e não exibir em público.
+- **Beacon de sucesso opcional**: se Android e desktop estão na mesma LAN, o Android pode mandar um broadcast UDP confirmando importação, e o desktop limpa o QR imediatamente. Sem isso, o QR só some quando o TTL expira.
+- **Manual fallback**: o Android sempre permite preencher os campos à mão (mesma UI do desktop), pra usuários sem câmera ou que prefiram não usar QR.
+
+**Modelo de ameaça**:
+
+| Ameaça | Mitigação |
+|---|---|
+| Pessoa do lado lendo a senha digitada | QR só serve para câmera-na-distância-certa; texto não está visível |
+| Screenshot/screen-recording por malware no desktop | Não-mitigado — mas se isso roda, o keychain já está comprometido |
+| Filmagem oportunista da tela em ambiente público | Aviso explícito + Tap-to-reveal + TTL de 60s |
+| Reuso de QR antigo capturado em foto | Single-use: sucesso no Android invalida o QR; expiração automática |
+| MITM em LAN (beacon de sucesso) | Beacon é apenas "limpe o QR", não transmite secrets — sem risco de exfiltração |
+
+Mesmo padrão do Bitwarden/KeePass mobile e do WhatsApp Web. Considerado **adequado para uso pessoal/familiar**.
+
+**Stack mínima**:
+
+- Geração de QR no desktop: `qrcode` (crate Rust) ou `qrcode` (npm) — client-side puro
+- Leitura de QR no Android: `tauri-plugin-barcode-scanner` (oficial Tauri Mobile)
+- Serialização: o `StorageInit` já é `Serialize + Deserialize` no Rust; basta JSON
+
 ---
 
 ## 8. Estratégia de Sincronização
@@ -779,6 +840,7 @@ O fluxo lógico do diagrama §5.1 fica idêntico; só não há mais a camada "AP
 ### Fase 3 — Android (2-3 semanas)
 
 - [ ] Build Android com Tauri v2
+- [ ] **Pareamento Desktop ↔ Android via QR Code** (ver §7.3) — desktop gera QR efêmero com `StorageInit` + chaves de IA; Android lê com câmera, salva no Keystore. Sem servidor intermediário.
 - [ ] Share Intent para texto (links)
 - [ ] Share Intent para áudio
 - [ ] Integração Whisper para transcrição
