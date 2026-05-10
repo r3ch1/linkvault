@@ -30,38 +30,119 @@ Documentação oficial atualizada: https://v2.tauri.app/start/prerequisites/#and
 Da raiz do repo:
 
 ```bash
-npm run tauri -- android init
+npm run android:init
 ```
 
-Isso cria `src-tauri/gen/android/` com o projeto Gradle e o `AndroidManifest.xml`.
+Isso roda `tauri android init` (cria `src-tauri/gen/android/` com o projeto Gradle e o `AndroidManifest.xml`) e **logo em seguida** aplica nosso patch automatizado em cima do manifest (camera permission + intent-filters de Share).
 
-> O diretório `src-tauri/gen/android/` é **commitado** (vai pro git) — assim outras pessoas que clonarem o repo não precisam rodar `init`. Apenas o `gen/schemas` é regenerado a cada build (já está no `.gitignore`).
+> O diretório `src-tauri/gen/android/` **NÃO é commitado** — é código gerado e está no `.gitignore`. Quem clonar o repo precisa rodar `npm run android:init` uma vez por máquina (mesmo passo é necessário pra ter SDK/NDK instalados de qualquer jeito).
 
-## 3. Adicionar o intent-filter de Share (manual)
+Os scripts disponíveis são:
 
-Edita `src-tauri/gen/android/app/src/main/AndroidManifest.xml` e adiciona dentro da `<activity>` principal:
+| Comando | O que faz |
+|---|---|
+| `npm run android:init` | `tauri android init` + aplica patch do manifest |
+| `npm run android:patch` | Só reaplica o patch (idempotente — pode rodar a qualquer momento) |
+| `npm run android:dev` | Aplica patch + `tauri android dev` |
+| `npm run android:build` | Aplica patch + `tauri android build` |
+
+O patch fica em [`scripts/android-patch.mjs`](../scripts/android-patch.mjs) — é versionado, então edits que você queira fazer no manifest viram código no script e propagam pra todas as máquinas via git.
+
+## 3. O que o patch automatizado faz
+
+Se você quiser saber **o que** `npm run android:patch` adiciona no manifest (pra revisar antes de rodar, ou pra editar o script), aqui estão os blocos exatos. Não precisa fazer nada manual — o `npm run android:init` aplica tudo.
+
+### 3.1 Permissions de câmera
+
+Logo abaixo de `<uses-permission android:name="android.permission.INTERNET" />`, adiciona:
 
 ```xml
-<!-- Receber links compartilhados -->
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+```
+
+### 3.2 Intent-filters de Share
+
+Dentro do `<activity android:name=".MainActivity">`, **logo depois** do intent-filter de `LAUNCHER`, adiciona:
+
+```xml
+<!-- Receber links compartilhados de outros apps (Phase 3) -->
 <intent-filter>
-  <action android:name="android.intent.action.SEND" />
-  <category android:name="android.intent.category.DEFAULT" />
-  <data android:mimeType="text/plain" />
+    <action android:name="android.intent.action.SEND" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <data android:mimeType="text/plain" />
 </intent-filter>
 
-<!-- Receber arquivos de áudio (Phase 3 final) -->
+<!-- Receber arquivos de áudio compartilhados (Phase 3 final) -->
 <intent-filter>
-  <action android:name="android.intent.action.SEND" />
-  <category android:name="android.intent.category.DEFAULT" />
-  <data android:mimeType="audio/*" />
+    <action android:name="android.intent.action.SEND" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <data android:mimeType="audio/*" />
 </intent-filter>
+```
+
+### 3.3 Versão completa do manifesto (referência)
+
+Como `<application>` deve ficar depois do patch:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- AndroidTV support -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.linkvault"
+        android:usesCleartextTraffic="${usesCleartextTraffic}">
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:launchMode="singleTask"
+            android:label="@string/main_activity_title"
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+
+        <provider
+          android:name="androidx.core.content.FileProvider"
+          android:authorities="${applicationId}.fileprovider"
+          android:exported="false"
+          android:grantUriPermissions="true">
+          <meta-data
+            android:name="android.support.FILE_PROVIDER_PATHS"
+            android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>
 ```
 
 ## 4. Rodar em dev (com device conectado via USB ou emulador rodando)
 
 ```bash
 adb devices    # confirma que o device aparece
-npm run tauri -- android dev
+npm run android:dev
 ```
 
 Tauri vai compilar o Rust pra arquitetura do device, instalar o APK debug, e abrir o app com hot-reload do frontend.
@@ -69,7 +150,7 @@ Tauri vai compilar o Rust pra arquitetura do device, instalar o APK debug, e abr
 ## 5. Build de release
 
 ```bash
-npm run tauri -- android build
+npm run android:build
 ```
 
 Output APK assinado fica em `src-tauri/gen/android/app/build/outputs/apk/`.
@@ -100,18 +181,8 @@ Se a câmera falhar, dá pra usar o **fallback de copy/paste**: clica em "Copiar
 **App abre mas câmera não funciona**:
 - Confere que o `tauri-plugin-barcode-scanner` foi adicionado nas permissions do `src-tauri/capabilities/default.json` antes do build. Veja a próxima seção.
 
-## Permissions Android adicionais
+## Permissions Tauri (já no repo)
 
-Depois do `tauri android init`, edita `src-tauri/capabilities/default.json` e adiciona:
+As permissions necessárias do `barcode-scanner` já estão em `src-tauri/capabilities/mobile.json` (versionado), então não precisa adicionar nada — o Tauri pega automaticamente em build de Android/iOS.
 
-```json
-"barcode-scanner:allow-scan",
-"barcode-scanner:allow-cancel"
-```
-
-E em `src-tauri/gen/android/app/src/main/AndroidManifest.xml`, dentro de `<manifest>` (não dentro de `<application>`):
-
-```xml
-<uses-permission android:name="android.permission.CAMERA" />
-<uses-feature android:name="android.hardware.camera" android:required="false" />
-```
+O `mobile.json` tem um `"platforms": ["android", "iOS"]` que evita que essas permissions sejam aplicadas em build desktop (quebraria o desktop).

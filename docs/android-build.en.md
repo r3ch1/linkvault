@@ -30,12 +30,23 @@ Up-to-date official docs: https://v2.tauri.app/start/prerequisites/#android
 From the repo root:
 
 ```bash
-npm run tauri -- android init
+npm run android:init
 ```
 
-This creates `src-tauri/gen/android/` with the Gradle project and `AndroidManifest.xml`.
+This runs `tauri android init` (creates `src-tauri/gen/android/` with the Gradle project and `AndroidManifest.xml`) and then automatically applies our manifest patch (camera permission + Share intent-filters).
 
-> The `src-tauri/gen/android/` directory is **committed** (goes into git) — so others cloning the repo don't need to re-run `init`. Only `gen/schemas` is regenerated each build (already gitignored).
+> `src-tauri/gen/android/` is **NOT committed** — it's generated code and is gitignored. Anyone cloning the repo runs `npm run android:init` once per machine (you need SDK/NDK installed locally anyway).
+
+Available scripts:
+
+| Command | What it does |
+|---|---|
+| `npm run android:init` | `tauri android init` + apply manifest patch |
+| `npm run android:patch` | Only re-apply the patch (idempotent — safe to run anytime) |
+| `npm run android:dev` | Apply patch + `tauri android dev` |
+| `npm run android:build` | Apply patch + `tauri android build` |
+
+The patch lives in [`scripts/android-patch.mjs`](../scripts/android-patch.mjs) — it's versioned, so any manifest edits you want propagate to other machines via git.
 
 ## 3. Add the Share intent-filter (manual)
 
@@ -61,7 +72,7 @@ Edit `src-tauri/gen/android/app/src/main/AndroidManifest.xml` and add inside the
 
 ```bash
 adb devices    # confirm the device shows up
-npm run tauri -- android dev
+npm run android:dev
 ```
 
 Tauri compiles Rust for the device's architecture, installs the debug APK, and opens the app with frontend hot-reload.
@@ -69,7 +80,7 @@ Tauri compiles Rust for the device's architecture, installs the debug APK, and o
 ## 5. Release build
 
 ```bash
-npm run tauri -- android build
+npm run android:build
 ```
 
 Signed APK output lands in `src-tauri/gen/android/app/build/outputs/apk/`.

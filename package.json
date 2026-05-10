@@ -9,7 +9,11 @@
     "lint": "eslint",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "android:init": "tauri android init && node scripts/android-patch.mjs",
+    "android:patch": "node scripts/android-patch.mjs",
+    "android:dev": "node scripts/android-patch.mjs && tauri android dev",
+    "android:build": "node scripts/android-patch.mjs && tauri android build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",
