@@ -13,6 +13,8 @@ export type ContentKind =
 
 export type AiProviderId = "gemini" | "claude" | "openai" | "openrouter";
 
+export type StorageKind = "local" | "s3" | "r2" | "minio" | "webdav";
+
 export interface AiProcessResult {
   title: string;
   summary: string;
@@ -40,10 +42,27 @@ export interface BookmarkMeta {
   summary_preview: string;
 }
 
+export interface S3StorageConfig {
+  endpoint: string | null;
+  region: string;
+  bucket: string;
+  access_key_id: string;
+  has_secret: boolean;
+  force_path_style: boolean;
+}
+
+export interface WebDavStorageConfig {
+  base_url: string;
+  username: string;
+  has_password: boolean;
+}
+
 export interface AppConfig {
   storage: {
-    type: "local";
+    type: StorageKind;
     local: { path: string };
+    s3: S3StorageConfig | null;
+    webdav: WebDavStorageConfig | null;
   };
   ai: {
     default_provider: AiProviderId;
@@ -51,8 +70,30 @@ export interface AppConfig {
       AiProviderId,
       { model: string; has_key: boolean }
     >;
-    /** "auto" = same language as source content. Otherwise ISO 639-1: "pt", "en", "es", ... */
     summary_language: string;
   };
   ui: { theme: "dark" | "light"; default_view: string; items_per_page: number };
+}
+
+/** Mirror of Rust StorageInit — used for `storage_test_connection`. */
+export interface StorageInit {
+  kind: StorageKind;
+  local_path: string | null;
+  s3:
+    | {
+        endpoint: string | null;
+        region: string;
+        bucket: string;
+        access_key_id: string;
+        secret_access_key: string;
+        force_path_style: boolean;
+      }
+    | null;
+  webdav:
+    | {
+        base_url: string;
+        username: string;
+        password: string;
+      }
+    | null;
 }

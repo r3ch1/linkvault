@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppConfig, BookmarkMeta } from "./types";
+import type { AppConfig, BookmarkMeta, StorageInit } from "./types";
 
 export const tauri = {
   configLoad: () => invoke<AppConfig>("config_load"),
   configSave: (config: AppConfig) => invoke<void>("config_save", { config }),
 
+  // AI provider keys (in OS keychain)
   keyringSet: (provider: string, value: string) =>
     invoke<void>("keyring_set", { provider, value }),
   keyringGet: (provider: string) =>
@@ -12,19 +13,25 @@ export const tauri = {
   keyringDelete: (provider: string) =>
     invoke<void>("keyring_delete", { provider }),
 
-  bookmarkSave: (storageRoot: string, meta: BookmarkMeta, markdown: string) =>
-    invoke<void>("bookmark_save", { storageRoot, meta, markdown }),
-  bookmarkRead: (storageRoot: string, id: string) =>
-    invoke<[BookmarkMeta, string]>("bookmark_read", { storageRoot, id }),
-  bookmarkDelete: (storageRoot: string, id: string) =>
-    invoke<void>("bookmark_delete", { storageRoot, id }),
-  bookmarkListAll: (storageRoot: string) =>
-    invoke<BookmarkMeta[]>("bookmark_list_all", { storageRoot }),
+  // Storage credentials (in OS keychain). key examples:
+  //   "s3:secret_access_key", "webdav:password"
+  storageSecretSet: (key: string, value: string) =>
+    invoke<void>("storage_secret_set", { key, value }),
+  storageSecretDelete: (key: string) =>
+    invoke<void>("storage_secret_delete", { key }),
+  storageTestConnection: (init: StorageInit) =>
+    invoke<void>("storage_test_connection", { input: { init } }),
 
-  rebuildIndex: (storageRoot: string) =>
-    invoke<number>("rebuild_index", { storageRoot }),
-  ensureStorageDir: (path: string) =>
-    invoke<void>("ensure_storage_dir", { path }),
+  bookmarkSave: (meta: BookmarkMeta, markdown: string) =>
+    invoke<void>("bookmark_save", { meta, markdown }),
+  bookmarkRead: (id: string) =>
+    invoke<[BookmarkMeta, string]>("bookmark_read", { id }),
+  bookmarkDelete: (id: string) =>
+    invoke<void>("bookmark_delete", { id }),
+  bookmarkListAll: () =>
+    invoke<BookmarkMeta[]>("bookmark_list_all"),
+
+  rebuildIndex: () => invoke<number>("rebuild_index"),
   openPathExternal: (path: string) =>
     invoke<void>("open_path_external", { path }),
 };

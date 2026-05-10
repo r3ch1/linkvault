@@ -18,7 +18,6 @@ export const useAppStore = create<AppState>((set) => ({
     set({ loading: true, error: null });
     try {
       const cfg = await tauri.configLoad();
-      await tauri.ensureStorageDir(cfg.storage.local.path);
       set({ config: cfg, loading: false });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -27,7 +26,6 @@ export const useAppStore = create<AppState>((set) => ({
   },
   async save(cfg) {
     await tauri.configSave(cfg);
-    await tauri.ensureStorageDir(cfg.storage.local.path);
     set({ config: cfg });
   },
 }));

@@ -1,9 +1,12 @@
 use crate::commands::file_system::BookmarkMeta;
 use crate::error::AppResult;
+use crate::storage::StorageBackend;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+
+const INDEX_PATH: &str = ".index.json";
+const BOOKMARKS_PREFIX: &str = "bookmarks";
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct IndexFile {
@@ -15,56 +18,39 @@ pub struct IndexFile {
     pub recent: Vec<String>,
 }
 
-fn index_path(root: &str) -> PathBuf {
-    Path::new(root).join(".index.json")
-}
-
-fn bookmarks_dir(root: &str) -> PathBuf {
-    Path::new(root).join("bookmarks")
-}
-
-async fn read_index(root: &str) -> Option<IndexFile> {
-    let path = index_path(root);
-    let bytes = tokio::fs::read(&path).await.ok()?;
+async fn read_index(backend: &dyn StorageBackend) -> Option<IndexFile> {
+    let bytes = backend.read(INDEX_PATH).await.ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
-async fn write_index(root: &str, idx: &IndexFile) -> AppResult<()> {
-    let path = index_path(root);
-    if let Some(parent) = path.parent() {
-        tokio::fs::create_dir_all(parent).await?;
-    }
+async fn write_index(backend: &dyn StorageBackend, idx: &IndexFile) -> AppResult<()> {
     let s = serde_json::to_string_pretty(idx)?;
-    tokio::fs::write(&path, s).await?;
-    Ok(())
+    backend.write(INDEX_PATH, s.as_bytes()).await
 }
 
-pub async fn rebuild_index_at(root: &str) -> AppResult<u32> {
-    let dir = bookmarks_dir(root);
+pub async fn rebuild_index_at(backend: &dyn StorageBackend) -> AppResult<u32> {
     let mut idx = IndexFile {
         version: 1,
         generated_at: Utc::now().to_rfc3339(),
         ..Default::default()
     };
 
-    if !dir.exists() {
-        write_index(root, &idx).await?;
-        return Ok(0);
-    }
+    let keys = backend.list(BOOKMARKS_PREFIX).await.unwrap_or_default();
+    let meta_keys: Vec<String> = keys
+        .into_iter()
+        .filter(|k| k.ends_with(".meta.json"))
+        .collect();
 
     let mut metas: Vec<BookmarkMeta> = Vec::new();
-    let mut rd = tokio::fs::read_dir(&dir).await?;
-    while let Some(entry) = rd.next_entry().await? {
-        let path = entry.path();
-        let is_meta = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .map(|s| s.ends_with(".meta.json"))
-            .unwrap_or(false);
-        if !is_meta {
-            continue;
-        }
-        if let Ok(bytes) = tokio::fs::read(&path).await {
+    for key in meta_keys {
+        // Convert backend list result (which may include the bookmarks/ prefix)
+        // to a backend-relative path.
+        let path = if key.starts_with(&format!("{BOOKMARKS_PREFIX}/")) {
+            key
+        } else {
+            format!("{BOOKMARKS_PREFIX}/{key}")
+        };
+        if let Ok(bytes) = backend.read(&path).await {
             if let Ok(m) = serde_json::from_slice::<BookmarkMeta>(&bytes) {
                 metas.push(m);
             }
@@ -88,18 +74,20 @@ pub async fn rebuild_index_at(root: &str) -> AppResult<u32> {
     idx.recent = metas.iter().take(50).map(|m| m.id.clone()).collect();
     idx.bookmarks_count = metas.len() as u32;
 
-    write_index(root, &idx).await?;
+    write_index(backend, &idx).await?;
     Ok(idx.bookmarks_count)
 }
 
-pub async fn update_index_on_save(root: &str, meta: &BookmarkMeta) -> AppResult<()> {
-    let mut idx = read_index(root).await.unwrap_or(IndexFile {
+pub async fn update_index_on_save(
+    backend: &dyn StorageBackend,
+    meta: &BookmarkMeta,
+) -> AppResult<()> {
+    let mut idx = read_index(backend).await.unwrap_or(IndexFile {
         version: 1,
         generated_at: Utc::now().to_rfc3339(),
         ..Default::default()
     });
 
-    // Remove existing references to this id (in case of update).
     for v in idx.by_tag.values_mut() {
         v.retain(|id| id != &meta.id);
     }
@@ -123,15 +111,15 @@ pub async fn update_index_on_save(root: &str, meta: &BookmarkMeta) -> AppResult<
 
     idx.recent.insert(0, meta.id.clone());
     idx.recent.truncate(50);
-    idx.bookmarks_count = count_bookmarks(root).await;
+    idx.bookmarks_count = idx.recent.len() as u32; // approximation; rebuild for exact
     idx.generated_at = Utc::now().to_rfc3339();
-    write_index(root, &idx).await
+    write_index(backend, &idx).await
 }
 
-pub async fn update_index_on_delete(root: &str, id: &str) -> AppResult<()> {
-    let mut idx = match read_index(root).await {
+pub async fn update_index_on_delete(backend: &dyn StorageBackend, id: &str) -> AppResult<()> {
+    let mut idx = match read_index(backend).await {
         Some(i) => i,
-        None => return rebuild_index_at(root).await.map(|_| ()),
+        None => return rebuild_index_at(backend).await.map(|_| ()),
     };
     for v in idx.by_tag.values_mut() {
         v.retain(|i| i != id);
@@ -142,26 +130,7 @@ pub async fn update_index_on_delete(root: &str, id: &str) -> AppResult<()> {
     idx.by_tag.retain(|_, v| !v.is_empty());
     idx.by_type.retain(|_, v| !v.is_empty());
     idx.recent.retain(|i| i != id);
-    idx.bookmarks_count = count_bookmarks(root).await;
+    idx.bookmarks_count = idx.recent.len() as u32;
     idx.generated_at = Utc::now().to_rfc3339();
-    write_index(root, &idx).await
-}
-
-async fn count_bookmarks(root: &str) -> u32 {
-    let dir = bookmarks_dir(root);
-    let mut count = 0u32;
-    if let Ok(mut rd) = tokio::fs::read_dir(&dir).await {
-        while let Ok(Some(entry)) = rd.next_entry().await {
-            let path = entry.path();
-            if path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .map(|s| s.ends_with(".meta.json"))
-                .unwrap_or(false)
-            {
-                count += 1;
-            }
-        }
-    }
-    count
+    write_index(backend, &idx).await
 }

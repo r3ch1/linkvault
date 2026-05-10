@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Header } from "@/components/Header";
+import { StorageSettings } from "@/components/StorageSettings";
 import { useAppStore } from "@/lib/store";
 import { tauri } from "@/lib/tauri-bridge";
 import { PROVIDER_DEFAULT_MODELS, PROVIDER_LABELS } from "@/lib/ai";
@@ -30,7 +31,6 @@ export default function SettingsPage() {
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
-  const [pathSaving, setPathSaving] = useState(false);
 
   useEffect(() => {
     if (!config) load();
@@ -46,18 +46,6 @@ export default function SettingsPage() {
         Carregando…
       </main>
     );
-  }
-
-  async function saveStorage() {
-    if (!draft) return;
-    setPathSaving(true);
-    try {
-      await save(draft);
-      setSavedFlash("storage");
-      setTimeout(() => setSavedFlash(null), 1500);
-    } finally {
-      setPathSaving(false);
-    }
   }
 
   async function saveProviderKey(provider: AiProviderId) {
@@ -151,44 +139,7 @@ export default function SettingsPage() {
         </Link>
         <h1 className="mb-6 text-2xl font-bold">Configurações</h1>
 
-        <section className="mb-8 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-          <h2 className="mb-3 text-lg font-semibold">Storage</h2>
-          <label className="block text-sm text-neutral-400">
-            Pasta local dos bookmarks
-          </label>
-          <div className="mt-1 flex gap-2">
-            <input
-              value={draft.storage.local.path}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  storage: {
-                    ...draft.storage,
-                    local: { path: e.target.value },
-                  },
-                })
-              }
-              className="flex-1 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-            />
-            <button
-              onClick={saveStorage}
-              disabled={pathSaving}
-              className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium hover:bg-indigo-500 disabled:opacity-50"
-            >
-              {pathSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : savedFlash === "storage" ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                "Salvar"
-              )}
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-neutral-500">
-            Cada bookmark vira <code>.md</code> + <code>.meta.json</code>{" "}
-            paralelos dentro de <code>bookmarks/</code> nesse diretório.
-          </p>
-        </section>
+        <StorageSettings draft={draft} setDraft={setDraft} save={save} />
 
         <section className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
           <h2 className="mb-1 text-lg font-semibold">Provedores de IA</h2>

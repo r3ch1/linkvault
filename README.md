@@ -55,6 +55,14 @@ npm run tauri:build
 
 Output is in `src-tauri/target/release/bundle/`.
 
+### Cloud storage setup guides
+
+Step-by-step guides for syncing your bookmarks across devices:
+
+- Cloudflare R2 (recommended — free tier, ~5 min setup): [English](docs/storage-r2.en.md) · [Português](docs/storage-r2.md)
+- Amazon S3 (for AWS users, ~10 min setup): [English](docs/storage-s3.en.md) · [Português](docs/storage-s3.md)
+- WebDAV — works out of the box with Joplin / Nextcloud / ownCloud (just paste your URL + credentials in Settings)
+
 Full documentation: [INSTALLATION.md](docs/INSTALLATION.md) (coming soon)
 
 ## 📐 Architecture
@@ -82,13 +90,13 @@ Summary:
 - **Frontend**: Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind CSS 4
 - **Desktop/Mobile shell**: Tauri 2 (Rust)
 - **AI**: Anthropic Claude, Google Gemini, OpenAI, OpenRouter (called via `@tauri-apps/plugin-http`, no CORS issues)
-- **Storage**: local disk (working) — Cloudflare R2, S3, MinIO, WebDAV (planned for Phase 2)
+- **Storage**: local disk, Cloudflare R2, Amazon S3, MinIO, WebDAV — switchable in Settings, credentials in OS keychain
 - **Web portal**: Cloudflare Pages + D1 (serverless SQLite) + R2 (planned for Phase 5)
 
 ## 🗺️ Roadmap
 
 - [x] **Phase 1**: Desktop MVP (Linux/Mac/Windows) — list, detail with embeds, AI processing, multi-provider, OS-keychain secrets, configurable summary language
-- [ ] **Phase 2**: Cloud Storage (R2, S3, WebDAV)
+- [x] **Phase 2**: Cloud Storage — Cloudflare R2, AWS S3, MinIO and WebDAV backends, with test-connection UI and credentials in OS keychain
 - [ ] **Phase 3**: Android app with Share Intent
 - [ ] **Phase 4**: Polish (search, themes, export)
 - [ ] **Phase 5**: Read-only Web Portal

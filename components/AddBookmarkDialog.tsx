@@ -48,11 +48,7 @@ export function AddBookmarkDialog({
         .map((t) => t.trim().toLowerCase())
         .filter(Boolean);
       const meta = { ...preview.meta, tags };
-      await tauri.bookmarkSave(
-        config.storage.local.path,
-        meta,
-        preview.markdown
-      );
+      await tauri.bookmarkSave(meta, preview.markdown);
       onSaved(meta);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));

@@ -1,8 +1,8 @@
-use crate::commands::index::{rebuild_index_at, update_index_on_save, update_index_on_delete};
-use crate::error::{AppError, AppResult};
+use crate::commands::index::{rebuild_index_at, update_index_on_delete, update_index_on_save};
+use crate::error::AppResult;
+use crate::state::AppState;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use tauri::AppHandle;
+use tauri::{AppHandle, State};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BookmarkMeta {
@@ -30,88 +30,73 @@ pub struct BookmarkAi {
     pub processed_at: String,
 }
 
-fn bookmarks_dir(root: &str) -> PathBuf {
-    Path::new(root).join("bookmarks")
+fn md_path(id: &str) -> String {
+    format!("bookmarks/{id}.md")
 }
-
-async fn ensure_dir(p: &Path) -> AppResult<()> {
-    tokio::fs::create_dir_all(p).await?;
-    Ok(())
+fn meta_path(id: &str) -> String {
+    format!("bookmarks/{id}.meta.json")
 }
 
 #[tauri::command]
 pub async fn bookmark_save(
-    _app: AppHandle,
-    storage_root: String,
+    state: State<'_, AppState>,
     meta: BookmarkMeta,
     markdown: String,
 ) -> AppResult<()> {
-    let dir = bookmarks_dir(&storage_root);
-    ensure_dir(&dir).await?;
-
-    let md_path = dir.join(format!("{}.md", meta.id));
-    let meta_path = dir.join(format!("{}.meta.json", meta.id));
-
-    tokio::fs::write(&md_path, markdown).await?;
+    let backend = state.backend().await?;
+    backend.write(&md_path(&meta.id), markdown.as_bytes()).await?;
     let meta_str = serde_json::to_string_pretty(&meta)?;
-    tokio::fs::write(&meta_path, meta_str).await?;
-
-    update_index_on_save(&storage_root, &meta).await?;
+    backend
+        .write(&meta_path(&meta.id), meta_str.as_bytes())
+        .await?;
+    update_index_on_save(&*backend, &meta).await?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn bookmark_read(storage_root: String, id: String) -> AppResult<(BookmarkMeta, String)> {
-    let dir = bookmarks_dir(&storage_root);
-    let md_path = dir.join(format!("{}.md", id));
-    let meta_path = dir.join(format!("{}.meta.json", id));
-
-    let meta_bytes = tokio::fs::read(&meta_path).await?;
+pub async fn bookmark_read(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<(BookmarkMeta, String)> {
+    let backend = state.backend().await?;
+    let meta_bytes = backend.read(&meta_path(&id)).await?;
     let meta: BookmarkMeta = serde_json::from_slice(&meta_bytes)?;
-    let md = tokio::fs::read_to_string(&md_path).await?;
+    let md_bytes = backend.read(&md_path(&id)).await?;
+    let md = String::from_utf8(md_bytes).unwrap_or_default();
     Ok((meta, md))
 }
 
 #[tauri::command]
-pub async fn bookmark_delete(storage_root: String, id: String) -> AppResult<()> {
-    let dir = bookmarks_dir(&storage_root);
-    let md_path = dir.join(format!("{}.md", id));
-    let meta_path = dir.join(format!("{}.meta.json", id));
-
-    if md_path.exists() {
-        tokio::fs::remove_file(&md_path).await?;
-    }
-    if meta_path.exists() {
-        tokio::fs::remove_file(&meta_path).await?;
-    }
-    update_index_on_delete(&storage_root, &id).await?;
+pub async fn bookmark_delete(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    let backend = state.backend().await?;
+    backend.delete(&md_path(&id)).await?;
+    backend.delete(&meta_path(&id)).await?;
+    update_index_on_delete(&*backend, &id).await?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn bookmark_list_all(storage_root: String) -> AppResult<Vec<BookmarkMeta>> {
-    let dir = bookmarks_dir(&storage_root);
-    if !dir.exists() {
-        return Ok(vec![]);
-    }
+pub async fn bookmark_list_all(state: State<'_, AppState>) -> AppResult<Vec<BookmarkMeta>> {
+    let backend = state.backend().await?;
+    let keys = backend.list("bookmarks").await.unwrap_or_default();
+    let meta_keys: Vec<String> = keys
+        .into_iter()
+        .filter(|k| k.ends_with(".meta.json"))
+        .collect();
+
     let mut out = Vec::new();
-    let mut rd = tokio::fs::read_dir(&dir).await?;
-    while let Some(entry) = rd.next_entry().await? {
-        let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("json")
-            && path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .map(|s| s.ends_with(".meta.json"))
-                .unwrap_or(false)
-        {
-            match tokio::fs::read(&path).await {
-                Ok(bytes) => match serde_json::from_slice::<BookmarkMeta>(&bytes) {
-                    Ok(m) => out.push(m),
-                    Err(e) => log::warn!("skipping {:?}: {}", path, e),
-                },
-                Err(e) => log::warn!("read {:?}: {}", path, e),
-            }
+    for key in meta_keys {
+        let path = if key.starts_with("bookmarks/") {
+            key
+        } else {
+            format!("bookmarks/{key}")
+        };
+        match backend.read(&path).await {
+            Ok(bytes) => match serde_json::from_slice::<BookmarkMeta>(&bytes) {
+                Ok(m) => out.push(m),
+                Err(e) => log::warn!("skipping {}: {}", path, e),
+            },
+            Err(e) => log::warn!("read {}: {}", path, e),
         }
     }
     out.sort_by(|a, b| b.created_at.cmp(&a.created_at));
@@ -119,16 +104,9 @@ pub async fn bookmark_list_all(storage_root: String) -> AppResult<Vec<BookmarkMe
 }
 
 #[tauri::command]
-pub async fn rebuild_index(storage_root: String) -> AppResult<u32> {
-    rebuild_index_at(&storage_root).await
-}
-
-#[tauri::command]
-pub async fn ensure_storage_dir(path: String) -> AppResult<()> {
-    let p = PathBuf::from(&path);
-    ensure_dir(&p).await?;
-    ensure_dir(&p.join("bookmarks")).await?;
-    Ok(())
+pub async fn rebuild_index(state: State<'_, AppState>) -> AppResult<u32> {
+    let backend = state.backend().await?;
+    rebuild_index_at(&*backend).await
 }
 
 #[tauri::command]
@@ -136,6 +114,6 @@ pub async fn open_path_external(app: AppHandle, path: String) -> AppResult<()> {
     use tauri_plugin_opener::OpenerExt;
     app.opener()
         .open_path(path, None::<&str>)
-        .map_err(|e| AppError::Msg(format!("opener: {e}")))?;
+        .map_err(|e| crate::error::AppError::Msg(format!("opener: {e}")))?;
     Ok(())
 }

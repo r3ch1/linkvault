@@ -686,6 +686,8 @@ pub fn create_storage(config: &StorageConfig)
 | Bucket Name | Nome do bucket criado no R2 |
 | Endpoint | Automático: `{accountId}.r2.cloudflarestorage.com` |
 
+> 📘 Guia passo a passo para usuários finais: [`docs/storage-r2.md`](storage-r2.md). Versão para AWS S3: [`docs/storage-s3.md`](storage-s3.md).
+
 ### 8.3 Política de Sync
 
 - **Local**: nenhuma sync; arquivos só existem na máquina
@@ -757,12 +759,20 @@ O fluxo lógico do diagrama §5.1 fica idêntico; só não há mais a camada "AP
 
 ### Fase 2 — Cloud Storage (1-2 semanas)
 
-- [ ] `S3StorageBackend` em Rust (`aws-sdk-s3`)
-- [ ] Testar com Cloudflare R2
-- [ ] `WebDavStorageBackend` (compat com Joplin)
-- [ ] UI de configuração de storage com teste de conexão
-- [ ] Sync automático ao salvar/deletar
-- [ ] Modo offline com fila de sync
+- [x] `S3StorageBackend` em Rust (`aws-sdk-s3`) — cobre AWS S3, Cloudflare R2 e MinIO via endpoint configurável
+- [ ] Testar com Cloudflare R2 *(pendente: validação manual com bucket real)*
+- [x] `WebDavStorageBackend` (compat com Joplin/Nextcloud) — implementado com `reqwest` + parsing PROPFIND
+- [x] UI de configuração de storage com teste de conexão (`StorageSettings.tsx` + comando `storage_test_connection`)
+- [x] Sync automático ao salvar/deletar — write-through nativo via `StorageBackend` trait
+- [ ] Modo offline com fila de sync *(deferido para Fase 4 — exige queue persistente local + reconciliação)*
+
+#### 10.2 Notas de implementação da Fase 2
+
+- **Trait `StorageBackend`** (`src-tauri/src/storage/mod.rs`) define `read/write/delete/list/exists/test_connection`. Backend ativo vive num `AppState` (`Arc<RwLock<Box<dyn StorageBackend>>>`) e é reconstruído sempre que o `config.json` muda (`config_save` → `state.rebuild_backend()`).
+- **Commands de bookmark** (`bookmark_save/read/delete/list_all`) ficaram backend-agnósticos: não recebem mais `storage_root` — o backend é resolvido pelo state.
+- **Credenciais sensíveis** (S3 secret access key, senha WebDAV) ficam **só** no keychain do SO. O `config.json` armazena flags `has_secret`/`has_password` mas nunca o valor.
+- **R2/MinIO** ativam `force_path_style: true` automaticamente. Para AWS S3 normal usa virtual-hosted style.
+- **WebDAV** auto-cria diretórios faltantes via MKCOL antes de PUT. PROPFIND com `Depth: infinity` para listagem.
 
 ### Fase 3 — Android (2-3 semanas)
 

@@ -30,12 +30,12 @@ export default function Home() {
     if (!config) return;
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.storage.local.path]);
+  }, [config?.storage.type, config?.storage.local.path]);
 
   async function refresh() {
     if (!config) return;
     try {
-      const list = await tauri.bookmarkListAll(config.storage.local.path);
+      const list = await tauri.bookmarkListAll();
       setItems(list);
       setListError(null);
     } catch (e: unknown) {
@@ -64,14 +64,12 @@ export default function Home() {
   }, [items, query, tagFilter]);
 
   async function openBookmark(meta: BookmarkMeta) {
-    if (!config) return;
-    const [m, md] = await tauri.bookmarkRead(config.storage.local.path, meta.id);
+    const [m, md] = await tauri.bookmarkRead(meta.id);
     setOpenDetail({ meta: m, md });
   }
 
   async function deleteBookmark(id: string) {
-    if (!config) return;
-    await tauri.bookmarkDelete(config.storage.local.path, id);
+    await tauri.bookmarkDelete(id);
     setOpenDetail(null);
     refresh();
   }
