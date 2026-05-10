@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Check, Download, Eye, EyeOff, Loader2 } from "lucide-react";
 import { tauri } from "@/lib/tauri-bridge";
 import type { AppConfig, StorageInit, StorageKind } from "@/lib/types";
+import { MigrationDialog } from "./MigrationDialog";
 
 const KINDS: { value: StorageKind; label: string; hint: string }[] = [
   { value: "local", label: "Pasta local", hint: "Sem sync entre dispositivos." },
@@ -27,6 +28,13 @@ export function StorageSettings({
   const [busy, setBusy] = useState<"save" | "test" | "clear" | null>(null);
   const [flash, setFlash] = useState<"saved" | "tested" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showMigration, setShowMigration] = useState(false);
+  /**
+   * When the user changes the storage type, we surface a friendly warning
+   * suggesting they use the import flow. Counts the bookmarks on the
+   * currently-active backend (still the OLD one, until config_save runs).
+   */
+  const [switchHintCount, setSwitchHintCount] = useState<number | null>(null);
 
   const kind = draft.storage.type;
   const isS3Family = kind === "s3" || kind === "r2" || kind === "minio";
@@ -244,9 +252,21 @@ export function StorageSettings({
       <label className="block text-sm text-neutral-400">Tipo de storage</label>
       <select
         value={kind}
-        onChange={(e) =>
-          update({ type: e.target.value as StorageKind })
-        }
+        onChange={async (e) => {
+          const oldKind = kind;
+          const newKind = e.target.value as StorageKind;
+          if (oldKind !== newKind) {
+            // Best-effort: count bookmarks on the currently active backend
+            // (which is still the OLD one, until config_save runs).
+            try {
+              const items = await tauri.bookmarkListAll();
+              setSwitchHintCount(items.length > 0 ? items.length : null);
+            } catch {
+              setSwitchHintCount(null);
+            }
+          }
+          update({ type: newKind });
+        }}
         className="mt-1 w-full rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 focus:border-indigo-500 focus:outline-none"
       >
         {KINDS.map((k) => (
@@ -258,6 +278,18 @@ export function StorageSettings({
       <p className="mt-1 text-xs text-neutral-500">
         {KINDS.find((k) => k.value === kind)?.hint}
       </p>
+
+      {switchHintCount !== null && (
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-700/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+          <span>
+            ⚠️ Você tem <strong>{switchHintCount}</strong> bookmark(s) no
+            storage atual. Trocar de tipo <em>não move</em> esses arquivos
+            automaticamente. Depois de salvar a nova configuração, use{" "}
+            <strong>Importar de outro storage</strong> abaixo para copiá-los
+            para o destino. A origem permanece intacta.
+          </span>
+        </div>
+      )}
 
       <div className="mt-4 space-y-3">
         {kind === "local" && (
@@ -439,6 +471,35 @@ export function StorageSettings({
         <code>.meta.json</code> dentro de <code>bookmarks/</code>. Secrets
         ficam no keychain do SO — nunca no <code>config.json</code>.
       </p>
+
+      <div className="mt-5 border-t border-neutral-800 pt-4">
+        <h3 className="mb-1 text-sm font-medium text-neutral-200">
+          Migrar bookmarks
+        </h3>
+        <p className="mb-2 text-xs text-neutral-500">
+          Tem bookmarks num storage antigo (ex: pasta local) que você quer
+          trazer pro storage ativo? Use a importação — copia tudo sem mexer
+          na origem.
+        </p>
+        <button
+          onClick={() => setShowMigration(true)}
+          className="flex items-center gap-1.5 rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-900"
+        >
+          <Download className="h-4 w-4" />
+          Importar de outro storage
+        </button>
+      </div>
+
+      {showMigration && (
+        <MigrationDialog
+          defaultLocalPath={draft.storage.local.path}
+          onClose={() => setShowMigration(false)}
+          onDone={() => {
+            // Caller can refresh the list; we just close.
+            setShowMigration(false);
+          }}
+        />
+      )}
     </section>
   );
 }

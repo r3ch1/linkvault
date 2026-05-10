@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { BookmarkCard } from "@/components/BookmarkCard";
 import { BookmarkDetail } from "@/components/BookmarkDetail";
 import { AddBookmarkDialog } from "@/components/AddBookmarkDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAppStore } from "@/lib/store";
 import { tauri } from "@/lib/tauri-bridge";
 import type { BookmarkMeta } from "@/lib/types";
@@ -21,6 +22,7 @@ export default function Home() {
     md: string;
   } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<BookmarkMeta | null>(null);
 
   useEffect(() => {
     load();
@@ -68,7 +70,14 @@ export default function Home() {
     setOpenDetail({ meta: m, md });
   }
 
-  async function deleteBookmark(id: string) {
+  function requestDelete(meta: BookmarkMeta) {
+    setPendingDelete(meta);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setPendingDelete(null);
     await tauri.bookmarkDelete(id);
     setOpenDetail(null);
     refresh();
@@ -98,8 +107,24 @@ export default function Home() {
           meta={openDetail.meta}
           markdown={openDetail.md}
           onBack={() => setOpenDetail(null)}
-          onDelete={() => deleteBookmark(openDetail.meta.id)}
+          onDelete={() => requestDelete(openDetail.meta)}
         />
+        {pendingDelete && (
+          <ConfirmDialog
+            title="Deletar bookmark"
+            message={
+              <>
+                Tem certeza que quer deletar <strong>{pendingDelete.title}</strong>
+                ? Essa ação remove os arquivos <code>.md</code> e{" "}
+                <code>.meta.json</code> do storage e não pode ser desfeita.
+              </>
+            }
+            confirmLabel="Deletar"
+            destructive
+            onConfirm={confirmDelete}
+            onCancel={() => setPendingDelete(null)}
+          />
+        )}
       </main>
     );
   }
@@ -180,7 +205,7 @@ export default function Home() {
                 key={b.id}
                 meta={b}
                 onOpen={() => openBookmark(b)}
-                onDelete={() => deleteBookmark(b.id)}
+                onDelete={() => requestDelete(b)}
               />
             ))}
           </div>
@@ -195,6 +220,23 @@ export default function Home() {
             setShowAdd(false);
             refresh();
           }}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Deletar bookmark"
+          message={
+            <>
+              Tem certeza que quer deletar <strong>{pendingDelete.title}</strong>
+              ? Essa ação remove os arquivos <code>.md</code> e{" "}
+              <code>.meta.json</code> do storage e não pode ser desfeita.
+            </>
+          }
+          confirmLabel="Deletar"
+          destructive
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </main>

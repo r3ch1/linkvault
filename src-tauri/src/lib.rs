@@ -11,6 +11,7 @@ use commands::file_system::{
     bookmark_delete, bookmark_list_all, bookmark_read, bookmark_save, open_path_external,
     rebuild_index,
 };
+use commands::migrate::{storage_count_bookmarks, storage_migrate};
 use commands::storage_cmd::storage_test_connection;
 use state::AppState;
 
@@ -37,6 +38,8 @@ pub fn run() {
             storage_secret_set,
             storage_secret_delete,
             storage_test_connection,
+            storage_migrate,
+            storage_count_bookmarks,
             bookmark_save,
             bookmark_read,
             bookmark_delete,

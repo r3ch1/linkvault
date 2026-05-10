@@ -74,7 +74,7 @@ export function BookmarkCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (confirm(`Deletar "${meta.title}"?`)) onDelete();
+              onDelete();
             }}
             className="rounded p-1.5 text-neutral-400 hover:bg-red-500/10 hover:text-red-400"
             title="Deletar bookmark"

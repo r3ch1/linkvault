@@ -39,9 +39,7 @@ export function BookmarkDetail({
             Abrir original
           </button>
           <button
-            onClick={() => {
-              if (confirm(`Deletar "${meta.title}"?`)) onDelete();
-            }}
+            onClick={onDelete}
             className="flex items-center gap-1.5 rounded-md border border-red-900/40 bg-red-500/10 px-3 py-1.5 text-sm text-red-300 hover:bg-red-500/20"
           >
             <Trash2 className="h-4 w-4" />

@@ -765,6 +765,7 @@ O fluxo lógico do diagrama §5.1 fica idêntico; só não há mais a camada "AP
 - [x] UI de configuração de storage com teste de conexão (`StorageSettings.tsx` + comando `storage_test_connection`)
 - [x] Sync automático ao salvar/deletar — write-through nativo via `StorageBackend` trait
 - [ ] Modo offline com fila de sync *(deferido para Fase 4 — exige queue persistente local + reconciliação)*
+- [x] **Bônus**: migração entre storages (`storage_migrate`) — copia bookmarks de qualquer backend pro ativo, com aviso amigável quando o usuário troca de tipo e ainda tem dados no antigo
 
 #### 10.2 Notas de implementação da Fase 2
 
@@ -773,6 +774,7 @@ O fluxo lógico do diagrama §5.1 fica idêntico; só não há mais a camada "AP
 - **Credenciais sensíveis** (S3 secret access key, senha WebDAV) ficam **só** no keychain do SO. O `config.json` armazena flags `has_secret`/`has_password` mas nunca o valor.
 - **R2/MinIO** ativam `force_path_style: true` automaticamente. Para AWS S3 normal usa virtual-hosted style.
 - **WebDAV** auto-cria diretórios faltantes via MKCOL antes de PUT. PROPFIND com `Depth: infinity` para listagem.
+- **Migração de storage**: comando `storage_migrate(source: StorageInit, overwrite: bool)` instancia o backend de origem ad-hoc, copia todo `bookmarks/*` pro backend ativo (resolvido via `AppState`), pula IDs já existentes (a menos que `overwrite=true`), e regenera `.index.json` no destino. Origem nunca é alterada.
 
 ### Fase 3 — Android (2-3 semanas)
 

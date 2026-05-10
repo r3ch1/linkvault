@@ -21,6 +21,15 @@ export const tauri = {
     invoke<void>("storage_secret_delete", { key }),
   storageTestConnection: (init: StorageInit) =>
     invoke<void>("storage_test_connection", { input: { init } }),
+  storageCountBookmarks: (init: StorageInit) =>
+    invoke<number>("storage_count_bookmarks", { input: init }),
+  storageMigrate: (source: StorageInit, overwrite = false) =>
+    invoke<{
+      copied: number;
+      skipped_existing: number;
+      failed: number;
+      errors: string[];
+    }>("storage_migrate", { input: { source, overwrite } }),
 
   bookmarkSave: (meta: BookmarkMeta, markdown: string) =>
     invoke<void>("bookmark_save", { meta, markdown }),

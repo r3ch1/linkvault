@@ -9,6 +9,9 @@
     "core:webview:default",
     "core:event:default",
     "dialog:default",
+    "dialog:allow-ask",
+    "dialog:allow-confirm",
+    "dialog:allow-message",
     "opener:default",
     "fs:default",
     {
