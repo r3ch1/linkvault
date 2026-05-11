@@ -4,34 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager, State};
 
-const KEYRING_SERVICE: &str = "app.linkvault.desktop";
-
+/// Backwards-compatible facade. Real implementation lives in
+/// `crate::secret_store`, which dispatches between the `keyring` crate
+/// (desktop) and a JSON file in the app's private data dir (Android).
 pub mod keychain {
-    use super::KEYRING_SERVICE;
-    use crate::error::{AppError, AppResult};
-    use tauri::AppHandle;
-
-    pub fn set(_app: &AppHandle, key: &str, value: &str) -> AppResult<()> {
-        let entry = keyring::Entry::new(KEYRING_SERVICE, key)?;
-        entry.set_password(value)?;
-        Ok(())
-    }
-    pub fn get(_app: &AppHandle, key: &str) -> AppResult<Option<String>> {
-        let entry = keyring::Entry::new(KEYRING_SERVICE, key)?;
-        match entry.get_password() {
-            Ok(v) => Ok(Some(v)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(AppError::Keyring(e)),
-        }
-    }
-    pub fn delete(_app: &AppHandle, key: &str) -> AppResult<()> {
-        let entry = keyring::Entry::new(KEYRING_SERVICE, key)?;
-        match entry.delete_credential() {
-            Ok(_) => Ok(()),
-            Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(AppError::Keyring(e)),
-        }
-    }
+    pub use crate::secret_store::{delete, get, set};
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

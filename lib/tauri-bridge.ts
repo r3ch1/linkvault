@@ -52,4 +52,9 @@ export const tauri = {
       storage_kind: string;
       ai_providers_with_keys: string[];
     }>("pairing_import", { payload }),
+
+  consumePendingShare: () =>
+    invoke<{ kind: "text" | "audio"; data: string } | null>(
+      "consume_pending_share"
+    ),
 };

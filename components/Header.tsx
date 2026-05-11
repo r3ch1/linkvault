@@ -5,7 +5,14 @@ import { Bookmark, Plus, Settings } from "lucide-react";
 
 export function Header({ onAdd }: { onAdd?: () => void }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur">
+    <header
+      className="sticky top-0 z-30 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
+    >
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <Bookmark className="h-5 w-5 text-indigo-400" />

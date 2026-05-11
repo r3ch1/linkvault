@@ -14,9 +14,9 @@ export function PairingImportDialog({
   onClose: () => void;
   onDone: (summary: ImportSummary) => void;
 }) {
-  const [mode, setMode] = useState<"choose" | "paste" | "scanning" | "done" | "error">(
-    "choose"
-  );
+  const [mode, setMode] = useState<
+    "choose" | "paste" | "scanning" | "applying" | "done" | "error"
+  >("choose");
   const [pasteText, setPasteText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
@@ -56,6 +56,7 @@ export function PairingImportDialog({
 
   async function applyPayload(text: string) {
     setError(null);
+    setMode("applying");
     try {
       const s = await tauri.pairingImport(text);
       setSummary(s);
@@ -156,6 +157,16 @@ export function PairingImportDialog({
           <div className="flex flex-col items-center gap-2 py-12">
             <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
             <p className="text-sm text-neutral-400">Aguardando QR…</p>
+          </div>
+        )}
+
+        {mode === "applying" && (
+          <div className="flex flex-col items-center gap-2 py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
+            <p className="text-sm text-neutral-400">Aplicando configuração…</p>
+            <p className="text-xs text-neutral-500">
+              Gravando secrets no keychain e reconstruindo backend
+            </p>
           </div>
         )}
 

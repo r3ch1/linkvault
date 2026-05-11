@@ -23,6 +23,14 @@ body {
     "Helvetica Neue",
     Arial,
     sans-serif;
+  /* avoid horizontal scroll caused by elements wider than viewport */
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+body {
+  /* leave room for the Android navigation pill / iOS home indicator */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 select {

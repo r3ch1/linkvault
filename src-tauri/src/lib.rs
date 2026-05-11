@@ -1,5 +1,6 @@
 mod commands;
 mod error;
+mod secret_store;
 mod state;
 mod storage;
 
@@ -13,6 +14,7 @@ use commands::file_system::{
 };
 use commands::migrate::{storage_count_bookmarks, storage_migrate};
 use commands::pairing::{pairing_export, pairing_import};
+use commands::share::consume_pending_share;
 use commands::storage_cmd::storage_test_connection;
 use state::AppState;
 
@@ -51,6 +53,7 @@ pub fn run() {
             storage_count_bookmarks,
             pairing_export,
             pairing_import,
+            consume_pending_share,
             bookmark_save,
             bookmark_read,
             bookmark_delete,

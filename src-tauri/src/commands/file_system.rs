@@ -78,7 +78,7 @@ pub async fn bookmark_delete(state: State<'_, AppState>, id: String) -> AppResul
 #[tauri::command]
 pub async fn bookmark_list_all(state: State<'_, AppState>) -> AppResult<Vec<BookmarkMeta>> {
     let backend = state.backend().await?;
-    let keys = backend.list("bookmarks").await.unwrap_or_default();
+    let keys = backend.list("bookmarks").await?;
     let meta_keys: Vec<String> = keys
         .into_iter()
         .filter(|k| k.ends_with(".meta.json"))

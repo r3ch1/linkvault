@@ -22,6 +22,7 @@ export default function Home() {
     md: string;
   } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [sharedUrl, setSharedUrl] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BookmarkMeta | null>(null);
 
   useEffect(() => {
@@ -33,6 +34,32 @@ export default function Home() {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config?.storage.type, config?.storage.local.path]);
+
+  // Android Share Intent pickup: on mount and on window focus, see whether
+  // MainActivity left us a pending share. If yes, open the Add dialog
+  // with the URL prefilled.
+  useEffect(() => {
+    let cancelled = false;
+    async function checkShare() {
+      try {
+        const pending = await tauri.consumePendingShare();
+        if (!pending || cancelled) return;
+        if (pending.kind === "text" && pending.data) {
+          setSharedUrl(pending.data);
+          setShowAdd(true);
+        }
+      } catch {
+        // ignore — command may not be available on some platforms
+      }
+    }
+    checkShare();
+    const onFocus = () => checkShare();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   async function refresh() {
     if (!config) return;
@@ -215,9 +242,14 @@ export default function Home() {
       {showAdd && (
         <AddBookmarkDialog
           config={config}
-          onClose={() => setShowAdd(false)}
+          initialUrl={sharedUrl ?? undefined}
+          onClose={() => {
+            setShowAdd(false);
+            setSharedUrl(null);
+          }}
           onSaved={() => {
             setShowAdd(false);
+            setSharedUrl(null);
             refresh();
           }}
         />

@@ -10,12 +10,14 @@ export function AddBookmarkDialog({
   config,
   onClose,
   onSaved,
+  initialUrl,
 }: {
   config: AppConfig;
   onClose: () => void;
   onSaved: (meta: BookmarkMeta) => void;
+  initialUrl?: string;
 }) {
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl ?? "");
   const [phase, setPhase] =
     useState<"input" | "processing" | "preview" | "saving" | "error">("input");
   const [error, setError] = useState<string | null>(null);

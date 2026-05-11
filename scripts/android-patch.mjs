@@ -19,6 +19,11 @@ const MANIFEST = resolve(
   ROOT,
   "src-tauri/gen/android/app/src/main/AndroidManifest.xml"
 );
+const MAIN_ACTIVITY = resolve(
+  ROOT,
+  "src-tauri/gen/android/app/src/main/java/app/linkvault/desktop/MainActivity.kt"
+);
+const MAIN_ACTIVITY_SOURCE = resolve(ROOT, "scripts/android-mainactivity.kt");
 
 async function exists(path) {
   try {
@@ -101,14 +106,25 @@ async function main() {
   xml = r.xml;
   if (r.changed) log.push("✓ added SEND audio/* intent-filter");
 
-  if (xml === original) {
-    console.log("AndroidManifest.xml already patched. Nothing to do.");
-    return;
+  if (xml !== original) {
+    await writeFile(MANIFEST, xml, "utf8");
+    for (const line of log) console.log(line);
+    console.log(`Patched: ${MANIFEST}`);
+  } else {
+    console.log("AndroidManifest.xml already patched.");
   }
 
-  await writeFile(MANIFEST, xml, "utf8");
-  for (const line of log) console.log(line);
-  console.log(`Patched: ${MANIFEST}`);
+  // Replace MainActivity.kt with our version (Share Intent handler).
+  if (await exists(MAIN_ACTIVITY)) {
+    const desired = await readFile(MAIN_ACTIVITY_SOURCE, "utf8");
+    const current = await readFile(MAIN_ACTIVITY, "utf8");
+    if (current.trim() !== desired.trim()) {
+      await writeFile(MAIN_ACTIVITY, desired, "utf8");
+      console.log(`✓ replaced MainActivity.kt with Share Intent handler`);
+    } else {
+      console.log("MainActivity.kt already up to date.");
+    }
+  }
 }
 
 main().catch((e) => {
