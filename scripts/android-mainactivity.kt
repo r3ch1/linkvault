@@ -22,8 +22,8 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
   }
 
-  override fun onNewIntent(intent: Intent?) {
-    if (intent?.action == Intent.ACTION_SEND) {
+  override fun onNewIntent(intent: Intent) {
+    if (intent.action == Intent.ACTION_SEND) {
       runCatching { handleShareIntent(intent) }
         .onFailure { Log.e("LinkVault", "share onNewIntent failed", it) }
       val cleaned = makeLauncherIntent()
@@ -44,8 +44,7 @@ class MainActivity : TauriActivity() {
    * Persists incoming SEND payloads to `pending_share.json` inside the app's
    * private filesDir. Rust reads + clears it on app focus.
    */
-  private fun handleShareIntent(intent: Intent?) {
-    if (intent == null) return
+  private fun handleShareIntent(intent: Intent) {
     if (intent.action != Intent.ACTION_SEND) return
     val mime = intent.type ?: return
     val dir = filesDir

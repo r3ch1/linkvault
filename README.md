@@ -104,7 +104,8 @@ Summary:
 
 - [x] **Phase 1**: Desktop MVP (Linux/Mac/Windows) — list, detail with embeds, AI processing, multi-provider, OS-keychain secrets, configurable summary language
 - [x] **Phase 2**: Cloud Storage — Cloudflare R2, AWS S3, MinIO and WebDAV backends, with test-connection UI and credentials in OS keychain
-- [ ] **Phase 3**: Android app with Share Intent
+- [x] **Phase 3 (text)**: Android app — APK builds, QR pairing with desktop, Share Intent for text/links working
+- [ ] **Phase 3 (audio)**: Share Intent for audio + Whisper transcription
 - [ ] **Phase 4**: Polish (search, themes, export)
 - [ ] **Phase 5**: Read-only Web Portal
 - [ ] **Phase 6**: Chrome Extension

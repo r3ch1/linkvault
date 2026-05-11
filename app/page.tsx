@@ -45,7 +45,10 @@ export default function Home() {
         const pending = await tauri.consumePendingShare();
         if (!pending || cancelled) return;
         if (pending.kind === "text" && pending.data) {
-          setSharedUrl(pending.data);
+          // Some apps (e.g. Google News) share text like "Fonte: XDA https://..."
+          // instead of just the URL. Grab the first http(s) URL we find.
+          const match = pending.data.match(/https?:\/\/[^\s]+/);
+          setSharedUrl(match ? match[0] : pending.data);
           setShowAdd(true);
         }
       } catch {
@@ -112,16 +115,25 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="flex flex-1 items-center justify-center text-neutral-500">
-        Carregando…
+      <main className="flex-1">
+        <Header />
+        <div className="flex items-center justify-center py-20 text-neutral-500">
+          Carregando…
+        </div>
       </main>
     );
   }
 
   if (error || !config) {
     return (
-      <main className="flex flex-1 items-center justify-center text-red-400">
-        {error ?? "Falha ao carregar configuração"}
+      <main className="flex-1">
+        <Header />
+        <div className="flex flex-col items-center justify-center gap-3 px-4 py-20 text-center text-red-400">
+          <p>{error ?? "Falha ao carregar configuração"}</p>
+          <p className="text-xs text-neutral-500">
+            Toque 5x no logo "LinkVault" no topo para abrir o painel de debug.
+          </p>
+        </div>
       </main>
     );
   }

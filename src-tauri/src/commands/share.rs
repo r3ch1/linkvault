@@ -23,7 +23,10 @@ pub async fn consume_pending_share(app: AppHandle) -> AppResult<Option<PendingSh
         .path()
         .app_data_dir()
         .map_err(|e| AppError::Msg(format!("app_data_dir: {e}")))?;
-    let path = dir.join("pending_share.json");
+    // Kotlin writes to Context.filesDir, which on Android lives at
+    // `<app_data_dir>/files/`. Tauri's app_data_dir returns the parent, so we
+    // join the subdirectory explicitly.
+    let path = dir.join("files").join("pending_share.json");
     if !path.exists() {
         return Ok(None);
     }

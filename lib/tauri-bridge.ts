@@ -1,7 +1,30 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as rawInvoke } from "@tauri-apps/api/core";
 import type { AppConfig, BookmarkMeta, StorageInit } from "./types";
+import { push } from "./debug-log";
+
+// Wrap every invoke so the debug overlay can see what the UI is calling
+// and what came back. The Moto E7 can't give us logcat, so this is our log.
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  push({ kind: "invoke", cmd, msg: args ? JSON.stringify(args).slice(0, 120) : "" });
+  try {
+    const out = await rawInvoke<T>(cmd, args);
+    const preview =
+      typeof out === "string"
+        ? out.slice(0, 80)
+        : out === null || out === undefined
+        ? String(out)
+        : JSON.stringify(out).slice(0, 120);
+    push({ kind: "result", cmd, msg: preview });
+    return out;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    push({ kind: "error", cmd, msg });
+    throw e;
+  }
+}
 
 export const tauri = {
+  debugInfo: () => invoke<unknown>("debug_info"),
   configLoad: () => invoke<AppConfig>("config_load"),
   configSave: (config: AppConfig) => invoke<void>("config_save", { config }),
 

@@ -839,9 +839,10 @@ O fluxo lógico do diagrama §5.1 fica idêntico; só não há mais a camada "AP
 
 ### Fase 3 — Android (2-3 semanas)
 
-- [ ] Build Android com Tauri v2 *(código pronto; manual: rodar `tauri android init` numa máquina com Android SDK/NDK — ver [docs/android-build.md](android-build.md))*
+- [x] Build Android com Tauri v2 — APK debug ~51MB (universal, arm64). Scripts `npm run android:init / android:patch / android:dev / android:build`. `[profile.dev] strip = "debuginfo"` reduz tamanho em ~50%. Ver [docs/android-build.md](android-build.md).
 - [x] **Pareamento Desktop ↔ Android via QR Code** (ver §7.3) — desktop gera QR efêmero com TTL 60s + tap-to-reveal + aviso; Android (ou desktop como fallback) lê com câmera via `@tauri-apps/plugin-barcode-scanner` ou cola JSON manualmente. Sem servidor intermediário. Comandos Rust: `pairing_export` / `pairing_import`.
-- [ ] Share Intent para texto (links)
+- [x] **Share Intent para texto (links)** — `MainActivity.kt` intercepta `ACTION_SEND` antes de `super.onCreate` (isola o intent do Tauri pra não panicar a WebView), persiste payload em `<filesDir>/pending_share.json`, e injeta intent MAIN/LAUNCHER vanilla pro Tauri inicializar normal. Rust expõe `consume_pending_share` que lê em `<app_data_dir>/files/pending_share.json` (Tauri `app_data_dir` aponta pro `dataDir` do Android, enquanto Kotlin `filesDir` é o subdir `files/`). Front extrai a primeira URL do texto compartilhado via regex (apps como Google News mandam "Fonte: X https://..." em vez de só a URL).
+- [x] **Overlay de debug in-app** (5 taps no logo) — necessário porque o Moto E7 de teste não passa USB debug. Mostra `app_data_dir`, listagem de arquivos, conteúdo de `pending_share.json`, e ring buffer de invokes/erros do bridge. Renderizado via `createPortal(document.body)` porque o Header tem `backdrop-blur` que cria containing block pra `position: fixed`.
 - [ ] Share Intent para áudio
 - [ ] Integração Whisper para transcrição
 - [ ] Overlay rápido de confirmação

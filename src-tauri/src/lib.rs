@@ -4,6 +4,7 @@ mod secret_store;
 mod state;
 mod storage;
 
+use commands::debug_cmd::debug_info;
 use commands::config::{
     config_load, config_save, keyring_delete, keyring_get, keyring_set, storage_secret_delete,
     storage_secret_set,
@@ -60,6 +61,7 @@ pub fn run() {
             bookmark_list_all,
             rebuild_index,
             open_path_external,
+            debug_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,4 +1,5 @@
 pub mod config;
+pub mod debug_cmd;
 pub mod file_system;
 pub mod index;
 pub mod migrate;
